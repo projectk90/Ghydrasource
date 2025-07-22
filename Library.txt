@@ -1,0 +1,586 @@
+-- GHydra UI Library v1.0
+-- Made By Hydraeron_ On Discord
+
+local GHydra_Library = {}
+GHydra_Library.__index = GHydra_Library
+
+-- Default configuration
+local defaults = {
+    Name = "GHydra",
+    Version = "1.0",
+    KeySystem = false,
+    Key = "",
+    Theme = "Dark",
+    AccentColor = Color3.fromRGB(0, 170, 255)
+}
+
+-- Utility functions
+local function create(class, props)
+    local instance = Instance.new(class)
+    for prop, value in pairs(props) do
+        instance[prop] = value
+    end
+    return instance
+end
+
+-- Main setup function
+function GHydra_Library.new(options)
+    local self = setmetatable({}, GHydra_Library)
+    
+    -- Merge options with defaults
+    for k, v in pairs(defaults) do
+        self[k] = options[k] or v
+    end
+    
+    -- Key system verification
+    if self.KeySystem then
+        if self.Key ~= options.Key then
+            error("[GHydra] Invalid key provided")
+            return nil
+        end
+    end
+    
+    -- Create main UI container
+    self.ScreenGui = create("ScreenGui", {
+        Name = self.Name,
+        Parent = game:GetService("CoreGui") or game.Players.LocalPlayer:WaitForChild("PlayerGui"),
+        ResetOnSpawn = false
+    })
+    
+    -- Theme data
+    self.Themes = {
+        Dark = {
+            Background = Color3.fromRGB(30, 30, 30),
+            Foreground = Color3.fromRGB(50, 50, 50),
+            Text = Color3.fromRGB(255, 255, 255),
+            Border = Color3.fromRGB(60, 60, 60)
+        },
+        Light = {
+            Background = Color3.fromRGB(240, 240, 240),
+            Foreground = Color3.fromRGB(220, 220, 220),
+            Text = Color3.fromRGB(0, 0, 0),
+            Border = Color3.fromRGB(200, 200, 200)
+        }
+    }
+    
+    return self
+end
+
+-- Window creation
+function GHydra_Library:CreateWindow(options)
+    options = options or {}
+    local window = {
+        Name = options.Name or "Window",
+        Size = options.Size or UDim2.new(0, 400, 0, 500),
+        Position = options.Position or UDim2.new(0.5, -200, 0.5, -250)
+    }
+    
+    -- Main frame
+    window.MainFrame = create("Frame", {
+        Parent = self.ScreenGui,
+        Name = window.Name,
+        Size = window.Size,
+        Position = window.Position,
+        BackgroundColor3 = self.Themes[self.Theme].Background,
+        BorderColor3 = self.Themes[self.Theme].Border,
+        BorderSizePixel = 1,
+        ClipsDescendants = true
+    })
+    
+    -- Title bar
+    window.TitleBar = create("Frame", {
+        Parent = window.MainFrame,
+        Name = "TitleBar",
+        Size = UDim2.new(1, 0, 0, 30),
+        BackgroundColor3 = self.AccentColor,
+        BorderSizePixel = 0
+    })
+    
+    window.Title = create("TextLabel", {
+        Parent = window.TitleBar,
+        Name = "Title",
+        Size = UDim2.new(1, -60, 1, 0),
+        Position = UDim2.new(0, 10, 0, 0),
+        BackgroundTransparency = 1,
+        Text = window.Name,
+        TextColor3 = self.Themes[self.Theme].Text,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Font = Enum.Font.GothamSemibold,
+        TextSize = 14
+    })
+    
+    -- Close button
+    window.CloseButton = create("TextButton", {
+        Parent = window.TitleBar,
+        Name = "CloseButton",
+        Size = UDim2.new(0, 30, 0, 30),
+        Position = UDim2.new(1, -30, 0, 0),
+        BackgroundColor3 = Color3.fromRGB(200, 50, 50),
+        BorderSizePixel = 0,
+        Text = "X",
+        TextColor3 = Color3.fromRGB(255, 255, 255),
+        Font = Enum.Font.GothamBold,
+        TextSize = 14
+    })
+    
+    window.CloseButton.MouseButton1Click:Connect(function()
+        window.MainFrame:Destroy()
+    end)
+    
+    -- Tab container
+    window.TabContainer = create("Frame", {
+        Parent = window.MainFrame,
+        Name = "TabContainer",
+        Size = UDim2.new(1, 0, 0, 30),
+        Position = UDim2.new(0, 0, 0, 30),
+        BackgroundColor3 = self.Themes[self.Theme].Foreground,
+        BorderSizePixel = 0
+    })
+    
+    -- Content frame
+    window.ContentFrame = create("Frame", {
+        Parent = window.MainFrame,
+        Name = "Content",
+        Size = UDim2.new(1, 0, 1, -60),
+        Position = UDim2.new(0, 0, 0, 60),
+        BackgroundColor3 = self.Themes[self.Theme].Background,
+        BorderSizePixel = 0
+    })
+    
+    -- Make draggable
+    local dragging
+    local dragInput
+    local dragStart
+    local startPos
+    
+    window.TitleBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = window.MainFrame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    
+    window.TitleBar.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
+    
+    game:GetService("UserInputService").InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            window.MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    
+    return window
+end
+
+-- Button element
+function GHydra_Library:CreateButton(parent, options)
+    options = options or {}
+    local button = {
+        Name = options.Name or "Button",
+        Size = options.Size or UDim2.new(1, -20, 0, 30),
+        Position = options.Position or UDim2.new(0, 10, 0, 0),
+        Text = options.Text or "Button",
+        Callback = options.Callback or function() end
+    }
+    
+    button.Instance = create("TextButton", {
+        Parent = parent,
+        Name = button.Name,
+        Size = button.Size,
+        Position = button.Position,
+        BackgroundColor3 = self.Themes[self.Theme].Foreground,
+        BorderColor3 = self.Themes[self.Theme].Border,
+        BorderSizePixel = 1,
+        Text = button.Text,
+        TextColor3 = self.Themes[self.Theme].Text,
+        Font = Enum.Font.Gotham,
+        TextSize = 14,
+        AutoButtonColor = false
+    })
+    
+    -- Hover effects
+    button.Instance.MouseEnter:Connect(function()
+        button.Instance.BackgroundColor3 = Color3.fromRGB(
+            math.floor(self.Themes[self.Theme].Foreground.R * 255 * 0.9),
+            math.floor(self.Themes[self.Theme].Foreground.G * 255 * 0.9),
+            math.floor(self.Themes[self.Theme].Foreground.B * 255 * 0.9)
+        )
+    end)
+    
+    button.Instance.MouseLeave:Connect(function()
+        button.Instance.BackgroundColor3 = self.Themes[self.Theme].Foreground
+    end)
+    
+    -- Click handler
+    button.Instance.MouseButton1Click:Connect(function()
+        button.Callback()
+    end)
+    
+    return button
+end
+
+-- Toggle element
+function GHydra_Library:CreateToggle(parent, options)
+    options = options or {}
+    local toggle = {
+        Name = options.Name or "Toggle",
+        Size = options.Size or UDim2.new(1, -20, 0, 30),
+        Position = options.Position or UDim2.new(0, 10, 0, 0),
+        Text = options.Text or "Toggle",
+        Default = options.Default or false,
+        Callback = options.Callback or function() end
+    }
+    
+    toggle.Value = toggle.Default
+    
+    -- Main frame
+    toggle.Instance = create("Frame", {
+        Parent = parent,
+        Name = toggle.Name,
+        Size = toggle.Size,
+        Position = toggle.Position,
+        BackgroundTransparency = 1
+    })
+    
+    -- Label
+    toggle.Label = create("TextLabel", {
+        Parent = toggle.Instance,
+        Name = "Label",
+        Size = UDim2.new(1, -40, 1, 0),
+        Position = UDim2.new(0, 0, 0, 0),
+        BackgroundTransparency = 1,
+        Text = toggle.Text,
+        TextColor3 = self.Themes[self.Theme].Text,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Font = Enum.Font.Gotham,
+        TextSize = 14
+    })
+    
+    -- Toggle background
+    toggle.ToggleFrame = create("Frame", {
+        Parent = toggle.Instance,
+        Name = "Toggle",
+        Size = UDim2.new(0, 30, 0, 15),
+        Position = UDim2.new(1, -30, 0.5, -7.5),
+        BackgroundColor3 = self.Themes[self.Theme].Foreground,
+        BorderColor3 = self.Themes[self.Theme].Border,
+        BorderSizePixel = 1
+    })
+    
+    -- Toggle indicator
+    toggle.Indicator = create("Frame", {
+        Parent = toggle.ToggleFrame,
+        Name = "Indicator",
+        Size = UDim2.new(0, 13, 0, 13),
+        Position = toggle.Default and UDim2.new(1, -14, 0.5, -6.5) or UDim2.new(0, 1, 0.5, -6.5),
+        BackgroundColor3 = toggle.Default and self.AccentColor or Color3.fromRGB(150, 150, 150),
+        BorderSizePixel = 0
+    })
+    
+    -- Click handler
+    toggle.ToggleFrame.MouseButton1Click:Connect(function()
+        toggle.Value = not toggle.Value
+        toggle.Indicator.Position = toggle.Value and UDim2.new(1, -14, 0.5, -6.5) or UDim2.new(0, 1, 0.5, -6.5)
+        toggle.Indicator.BackgroundColor3 = toggle.Value and self.AccentColor or Color3.fromRGB(150, 150, 150)
+        toggle.Callback(toggle.Value)
+    end)
+    
+    return toggle
+end
+
+-- Slider element
+function GHydra_Library:CreateSlider(parent, options)
+    options = options or {}
+    local slider = {
+        Name = options.Name or "Slider",
+        Size = options.Size or UDim2.new(1, -20, 0, 50),
+        Position = options.Position or UDim2.new(0, 10, 0, 0),
+        Text = options.Text or "Slider",
+        Min = options.Min or 0,
+        Max = options.Max or 100,
+        Default = options.Default or 50,
+        Callback = options.Callback or function() end
+    }
+    
+    slider.Value = slider.Default
+    
+    -- Main frame
+    slider.Instance = create("Frame", {
+        Parent = parent,
+        Name = slider.Name,
+        Size = slider.Size,
+        Position = slider.Position,
+        BackgroundTransparency = 1
+    })
+    
+    -- Label
+    slider.Label = create("TextLabel", {
+        Parent = slider.Instance,
+        Name = "Label",
+        Size = UDim2.new(1, 0, 0, 20),
+        Position = UDim2.new(0, 0, 0, 0),
+        BackgroundTransparency = 1,
+        Text = slider.Text,
+        TextColor3 = self.Themes[self.Theme].Text,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Font = Enum.Font.Gotham,
+        TextSize = 14
+    })
+    
+    -- Value display
+    slider.ValueLabel = create("TextLabel", {
+        Parent = slider.Instance,
+        Name = "Value",
+        Size = UDim2.new(0, 50, 0, 20),
+        Position = UDim2.new(1, -50, 0, 0),
+        BackgroundTransparency = 1,
+        Text = tostring(slider.Value),
+        TextColor3 = self.Themes[self.Theme].Text,
+        TextXAlignment = Enum.TextXAlignment.Right,
+        Font = Enum.Font.Gotham,
+        TextSize = 14
+    })
+    
+    -- Slider track
+    slider.Track = create("Frame", {
+        Parent = slider.Instance,
+        Name = "Track",
+        Size = UDim2.new(1, 0, 0, 5),
+        Position = UDim2.new(0, 0, 0, 25),
+        BackgroundColor3 = self.Themes[self.Theme].Foreground,
+        BorderColor3 = self.Themes[self.Theme].Border,
+        BorderSizePixel = 1
+    })
+    
+    -- Slider fill
+    slider.Fill = create("Frame", {
+        Parent = slider.Track,
+        Name = "Fill",
+        Size = UDim2.new((slider.Value - slider.Min) / (slider.Max - slider.Min), 0, 1, 0),
+        BackgroundColor3 = self.AccentColor,
+        BorderSizePixel = 0
+    })
+    
+    -- Slider button
+    slider.Button = create("TextButton", {
+        Parent = slider.Track,
+        Name = "Button",
+        Size = UDim2.new(0, 15, 0, 15),
+        Position = UDim2.new(slider.Fill.Size.X.Scale, -7.5, 0.5, -7.5),
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BorderColor3 = self.Themes[self.Theme].Border,
+        BorderSizePixel = 1,
+        Text = "",
+        AutoButtonColor = false
+    })
+    
+    -- Dragging logic
+    local dragging = false
+    
+    slider.Button.MouseButton1Down:Connect(function()
+        dragging = true
+    end)
+    
+    game:GetService("UserInputService").InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    
+    game:GetService("UserInputService").InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local mouse = game:GetService("Players").LocalPlayer:GetMouse()
+            local xOffset = mouse.X - slider.Track.AbsolutePosition.X
+            local percent = math.clamp(xOffset / slider.Track.AbsoluteSize.X, 0, 1)
+            
+            slider.Value = math.floor(slider.Min + (slider.Max - slider.Min) * percent)
+            slider.ValueLabel.Text = tostring(slider.Value)
+            slider.Fill.Size = UDim2.new(percent, 0, 1, 0)
+            slider.Button.Position = UDim2.new(percent, -7.5, 0.5, -7.5)
+            
+            slider.Callback(slider.Value)
+        end
+    end)
+    
+    return slider
+end
+
+-- Input box element
+function GHydra_Library:CreateInput(parent, options)
+    options = options or {}
+    local input = {
+        Name = options.Name or "Input",
+        Size = options.Size or UDim2.new(1, -20, 0, 30),
+        Position = options.Position or UDim2.new(0, 10, 0, 0),
+        Text = options.Text or "",
+        Placeholder = options.Placeholder or "Enter text...",
+        Callback = options.Callback or function() end
+    }
+    
+    input.Instance = create("TextBox", {
+        Parent = parent,
+        Name = input.Name,
+        Size = input.Size,
+        Position = input.Position,
+        BackgroundColor3 = self.Themes[self.Theme].Foreground,
+        BorderColor3 = self.Themes[self.Theme].Border,
+        BorderSizePixel = 1,
+        Text = input.Text,
+        PlaceholderText = input.Placeholder,
+        TextColor3 = self.Themes[self.Theme].Text,
+        Font = Enum.Font.Gotham,
+        TextSize = 14,
+        ClearTextOnFocus = false
+    })
+    
+    input.Instance.FocusLost:Connect(function(enterPressed)
+        if enterPressed then
+            input.Callback(input.Instance.Text)
+        end
+    end)
+    
+    return input
+end
+
+-- Label element
+function GHydra_Library:CreateLabel(parent, options)
+    options = options or {}
+    local label = {
+        Name = options.Name or "Label",
+        Size = options.Size or UDim2.new(1, -20, 0, 20),
+        Position = options.Position or UDim2.new(0, 10, 0, 0),
+        Text = options.Text or "Label",
+        TextXAlignment = options.TextXAlignment or Enum.TextXAlignment.Left
+    }
+    
+    label.Instance = create("TextLabel", {
+        Parent = parent,
+        Name = label.Name,
+        Size = label.Size,
+        Position = label.Position,
+        BackgroundTransparency = 1,
+        Text = label.Text,
+        TextColor3 = self.Themes[self.Theme].Text,
+        TextXAlignment = label.TextXAlignment,
+        Font = Enum.Font.Gotham,
+        TextSize = 14
+    })
+    
+    return label
+end
+
+-- Dropdown element
+function GHydra_Library:CreateDropdown(parent, options)
+    options = options or {}
+    local dropdown = {
+        Name = options.Name or "Dropdown",
+        Size = options.Size or UDim2.new(1, -20, 0, 30),
+        Position = options.Position or UDim2.new(0, 10, 0, 0),
+        Text = options.Text or "Select an option",
+        Options = options.Options or {},
+        Default = options.Default or nil,
+        Callback = options.Callback or function() end
+    }
+    
+    dropdown.Value = dropdown.Default
+    dropdown.Open = false
+    
+    -- Main button
+    dropdown.Instance = create("TextButton", {
+        Parent = parent,
+        Name = dropdown.Name,
+        Size = dropdown.Size,
+        Position = dropdown.Position,
+        BackgroundColor3 = self.Themes[self.Theme].Foreground,
+        BorderColor3 = self.Themes[self.Theme].Border,
+        BorderSizePixel = 1,
+        Text = dropdown.Value or dropdown.Text,
+        TextColor3 = self.Themes[self.Theme].Text,
+        Font = Enum.Font.Gotham,
+        TextSize = 14,
+        AutoButtonColor = false
+    })
+    
+    -- Dropdown arrow
+    dropdown.Arrow = create("TextLabel", {
+        Parent = dropdown.Instance,
+        Name = "Arrow",
+        Size = UDim2.new(0, 20, 1, 0),
+        Position = UDim2.new(1, -20, 0, 0),
+        BackgroundTransparency = 1,
+        Text = "▼",
+        TextColor3 = self.Themes[self.Theme].Text,
+        Font = Enum.Font.Gotham,
+        TextSize = 14
+    })
+    
+    -- Options frame
+    dropdown.OptionsFrame = create("Frame", {
+        Parent = dropdown.Instance,
+        Name = "Options",
+        Size = UDim2.new(1, 0, 0, 0),
+        Position = UDim2.new(0, 0, 1, 1),
+        BackgroundColor3 = self.Themes[self.Theme].Background,
+        BorderColor3 = self.Themes[self.Theme].Border,
+        BorderSizePixel = 1,
+        ClipsDescendants = true,
+        Visible = false
+    })
+    
+    -- Toggle dropdown
+    dropdown.Instance.MouseButton1Click:Connect(function()
+        dropdown.Open = not dropdown.Open
+        
+        if dropdown.Open then
+            dropdown.Arrow.Text = "▲"
+            dropdown.OptionsFrame.Visible = true
+            dropdown.OptionsFrame.Size = UDim2.new(1, 0, 0, math.min(#dropdown.Options * 30, 150))
+        else
+            dropdown.Arrow.Text = "▼"
+            dropdown.OptionsFrame.Visible = false
+            dropdown.OptionsFrame.Size = UDim2.new(1, 0, 0, 0)
+        end
+    end)
+    
+    -- Create options
+    for i, option in ipairs(dropdown.Options) do
+        local optionButton = create("TextButton", {
+            Parent = dropdown.OptionsFrame,
+            Name = option,
+            Size = UDim2.new(1, 0, 0, 30),
+            Position = UDim2.new(0, 0, 0, (i-1)*30),
+            BackgroundColor3 = self.Themes[self.Theme].Foreground,
+            BorderSizePixel = 0,
+            Text = option,
+            TextColor3 = self.Themes[self.Theme].Text,
+            Font = Enum.Font.Gotham,
+            TextSize = 14,
+            AutoButtonColor = false
+        })
+        
+        optionButton.MouseButton1Click:Connect(function()
+            dropdown.Value = option
+            dropdown.Instance.Text = option
+            dropdown.Open = false
+            dropdown.Arrow.Text = "▼"
+            dropdown.OptionsFrame.Visible = false
+            dropdown.OptionsFrame.Size = UDim2.new(1, 0, 0, 0)
+            dropdown.Callback(option)
+        end)
+    end
+    
+    return dropdown
+end
+
+return GHydra_Library
